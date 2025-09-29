@@ -1,0 +1,347 @@
+#!/usr/bin/env bash
+#
+# play_silence - Main wrapper script for various silence-playing implementations
+#
+# Purpose: Provides a unified interface to multiple methods of playing silence
+# to solve vokoscreenNG 4.0.1 freezing issues with PulseAudio
+#
+# Author: Generated for gwwtests/play_silence project
+# License: Public Domain
+
+set -euo pipefail
+
+# Script configuration
+readonly SCRIPT_NAME="$(basename "$0")"
+readonly SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+readonly VERSION="1.0.0"
+
+# Available methods
+readonly METHODS=(
+    "c:C implementation using ALSA"
+    "python:Python3 implementation with PyAudio/Pygame"
+    "sox:Sox-based bash script"
+    "aplay:Aplay-based bash script"
+    "wav:Simple WAV file loop using aplay"
+)
+
+# Default method
+DEFAULT_METHOD="python"
+
+# Colors for output (if terminal supports it)
+if [[ -t 1 ]]; then
+    readonly RED='\033[0;31m'
+    readonly GREEN='\033[0;32m'
+    readonly YELLOW='\033[1;33m'
+    readonly BLUE='\033[0;34m'
+    readonly BOLD='\033[1m'
+    readonly NC='\033[0m' # No Color
+else
+    readonly RED=''
+    readonly GREEN=''
+    readonly YELLOW=''
+    readonly BLUE=''
+    readonly BOLD=''
+    readonly NC=''
+fi
+
+# Function to print colored output
+print_color() {
+    local color="$1"
+    shift
+    echo -e "${color}$*${NC}"
+}
+
+# Function to print usage information
+print_usage() {
+    cat <<EOF
+${BOLD}Usage:${NC} $SCRIPT_NAME [OPTIONS]
+
+${BOLD}Description:${NC}
+  Play silence indefinitely to keep audio subsystem active.
+  This solves vokoscreenNG 4.0.1 freezing issues with PulseAudio
+  when using simultaneous output virtual audio devices.
+
+${BOLD}Options:${NC}
+  -m, --method METHOD    Select playback method (default: $DEFAULT_METHOD)
+  -l, --list            List available methods
+  -h, --help            Show this help message
+  -v, --version         Show version information
+
+${BOLD}Available Methods:${NC}
+EOF
+    for method_desc in "${METHODS[@]}"; do
+        IFS=':' read -r method desc <<< "$method_desc"
+        printf "  ${GREEN}%-10s${NC} %s\n" "$method" "$desc"
+    done
+
+    cat <<EOF
+
+${BOLD}Examples:${NC}
+  $SCRIPT_NAME                    # Use default method (python)
+  $SCRIPT_NAME -m sox             # Use sox method
+  $SCRIPT_NAME --method c         # Use C/ALSA implementation
+  $SCRIPT_NAME -l                 # List all available methods
+
+${BOLD}Integration with vokoscreenNG:${NC}
+  1. Start the silence player:
+     $SCRIPT_NAME &
+
+  2. Launch vokoscreenNG in another terminal
+
+  3. Configure vokoscreenNG to use your audio device
+
+  4. Record without freezing issues
+
+  5. Stop the silence player when done:
+     killall $SCRIPT_NAME
+
+${BOLD}Notes:${NC}
+  - All methods run indefinitely until interrupted (Ctrl+C)
+  - Each method has its own README with specific details
+  - Some methods may require additional dependencies
+
+${BOLD}See Also:${NC}
+  Individual method documentation:
+    c_solution/play_silence.README.md
+    python_solution/play_silence.README.md
+    sox_solution/play_silence.README.md
+    aplay_solution/play_silence.README.md
+
+EOF
+}
+
+# Function to print version information
+print_version() {
+    cat <<EOF
+${BOLD}$SCRIPT_NAME${NC} version $VERSION
+Purpose: Solve vokoscreenNG 4.0.1 PulseAudio freezing issue
+Project: https://github.com/gwwtests/play_silence
+EOF
+}
+
+# Function to list available methods
+list_methods() {
+    print_color "$BOLD" "Available silence playback methods:"
+    echo
+    for method_desc in "${METHODS[@]}"; do
+        IFS=':' read -r method desc <<< "$method_desc"
+        printf "  ${GREEN}%-10s${NC} - %s\n" "$method" "$desc"
+    done
+    echo
+    print_color "$BLUE" "Use '$SCRIPT_NAME -m <method>' to select a specific method"
+}
+
+# Function to check if a method exists
+method_exists() {
+    local method="$1"
+    for method_desc in "${METHODS[@]}"; do
+        IFS=':' read -r m _ <<< "$method_desc"
+        [[ "$m" == "$method" ]] && return 0
+    done
+    return 1
+}
+
+# Function to run the C implementation
+run_c_method() {
+    local binary="$SCRIPT_DIR/c_solution/play_silence"
+
+    if [[ ! -x "$binary" ]]; then
+        print_color "$YELLOW" "C implementation not compiled. Building it now..."
+        if command -v make >/dev/null 2>&1; then
+            (cd "$SCRIPT_DIR/c_solution" && make) || {
+                print_color "$RED" "Error: Failed to compile C implementation"
+                print_color "$YELLOW" "Please check c_solution/play_silence.README.md for dependencies"
+                exit 1
+            }
+        else
+            print_color "$RED" "Error: 'make' not found. Cannot compile C implementation."
+            print_color "$YELLOW" "Install build-essential or equivalent for your distribution"
+            exit 1
+        fi
+    fi
+
+    print_color "$GREEN" "Starting C/ALSA silence player..."
+    exec "$binary" "$@"
+}
+
+# Function to run the Python implementation
+run_python_method() {
+    local script="$SCRIPT_DIR/python_solution/play_silence.py"
+
+    if [[ ! -f "$script" ]]; then
+        print_color "$RED" "Error: Python script not found at $script"
+        exit 1
+    fi
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        print_color "$RED" "Error: python3 not found in PATH"
+        print_color "$YELLOW" "Install Python 3 to use this method"
+        exit 1
+    fi
+
+    print_color "$GREEN" "Starting Python silence player..."
+    exec python3 "$script" "$@"
+}
+
+# Function to run the sox implementation
+run_sox_method() {
+    local script="$SCRIPT_DIR/sox_solution/play_silence.sh"
+
+    if [[ ! -x "$script" ]]; then
+        print_color "$RED" "Error: Sox script not found or not executable at $script"
+        exit 1
+    fi
+
+    if ! command -v sox >/dev/null 2>&1; then
+        print_color "$RED" "Error: sox not found in PATH"
+        print_color "$YELLOW" "Install sox to use this method:"
+        print_color "$YELLOW" "  Ubuntu/Debian: sudo apt-get install sox"
+        print_color "$YELLOW" "  Fedora: sudo dnf install sox"
+        print_color "$YELLOW" "  Arch: sudo pacman -S sox"
+        exit 1
+    fi
+
+    print_color "$GREEN" "Starting sox silence player..."
+    exec "$script" "$@"
+}
+
+# Function to run the aplay implementation
+run_aplay_method() {
+    local script="$SCRIPT_DIR/aplay_solution/play_silence.sh"
+
+    if [[ ! -x "$script" ]]; then
+        print_color "$RED" "Error: Aplay script not found or not executable at $script"
+        exit 1
+    fi
+
+    if ! command -v aplay >/dev/null 2>&1; then
+        print_color "$RED" "Error: aplay not found in PATH"
+        print_color "$YELLOW" "Install alsa-utils to use this method:"
+        print_color "$YELLOW" "  Ubuntu/Debian: sudo apt-get install alsa-utils"
+        print_color "$YELLOW" "  Fedora: sudo dnf install alsa-utils"
+        print_color "$YELLOW" "  Arch: sudo pacman -S alsa-utils"
+        exit 1
+    fi
+
+    print_color "$GREEN" "Starting aplay silence player..."
+    exec "$script" "$@"
+}
+
+# Function to run simple WAV file loop
+run_wav_method() {
+    local wav_file="$SCRIPT_DIR/assets/silence.wav"
+
+    if [[ ! -f "$wav_file" ]]; then
+        print_color "$RED" "Error: Silent WAV file not found at $wav_file"
+        exit 1
+    fi
+
+    if ! command -v aplay >/dev/null 2>&1; then
+        print_color "$RED" "Error: aplay not found in PATH"
+        print_color "$YELLOW" "Install alsa-utils to use this method"
+        exit 1
+    fi
+
+    print_color "$GREEN" "Starting simple WAV loop with aplay..."
+    print_color "$YELLOW" "Press Ctrl+C to stop"
+
+    # Trap signals for clean exit
+    trap 'print_color "$GREEN" "\nStopping silence playback..."; exit 0' INT TERM
+
+    # Play the WAV file in an infinite loop
+    while true; do
+        aplay -q "$wav_file" 2>/dev/null || true
+    done
+}
+
+# Main function
+main() {
+    local method="$DEFAULT_METHOD"
+    local show_help=false
+    local show_version=false
+    local list_only=false
+
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -m|--method)
+                if [[ $# -lt 2 ]]; then
+                    print_color "$RED" "Error: --method requires an argument"
+                    exit 1
+                fi
+                method="$2"
+                shift 2
+                ;;
+            -l|--list)
+                list_only=true
+                shift
+                ;;
+            -h|--help)
+                show_help=true
+                shift
+                ;;
+            -v|--version)
+                show_version=true
+                shift
+                ;;
+            -*)
+                print_color "$RED" "Error: Unknown option: $1"
+                print_color "$YELLOW" "Use '$SCRIPT_NAME --help' for usage information"
+                exit 1
+                ;;
+            *)
+                # Pass remaining arguments to the selected method
+                break
+                ;;
+        esac
+    done
+
+    # Handle informational flags
+    if [[ "$show_help" == true ]]; then
+        print_usage
+        exit 0
+    fi
+
+    if [[ "$show_version" == true ]]; then
+        print_version
+        exit 0
+    fi
+
+    if [[ "$list_only" == true ]]; then
+        list_methods
+        exit 0
+    fi
+
+    # Validate method
+    if ! method_exists "$method"; then
+        print_color "$RED" "Error: Unknown method: $method"
+        print_color "$YELLOW" "Use '$SCRIPT_NAME --list' to see available methods"
+        exit 1
+    fi
+
+    # Run the selected method
+    case "$method" in
+        c)
+            run_c_method "$@"
+            ;;
+        python)
+            run_python_method "$@"
+            ;;
+        sox)
+            run_sox_method "$@"
+            ;;
+        aplay)
+            run_aplay_method "$@"
+            ;;
+        wav)
+            run_wav_method "$@"
+            ;;
+        *)
+            print_color "$RED" "Error: Method not implemented: $method"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"
