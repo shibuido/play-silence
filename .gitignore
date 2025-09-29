@@ -1,0 +1,37 @@
+# Compiled binaries
+c_solution/play_silence
+*.o
+*.exe
+
+# Build artifacts
+build/
+dist/
+*.out
+
+# Package manager files
+package-lock.json
+node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Temporary files
+tmp/
+cache/
+*.tmp
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
