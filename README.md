@@ -12,6 +12,8 @@ This is a known issue affecting many users (see [vokoscreenNG issue #189](https:
 - Bluetooth audio devices
 - Monitor sources with PipeWire/PulseAudio
 
+**Workaround documented in**: [vokoscreenNG issue #379](https://github.com/vkohaupt/vokoscreenNG/issues/379)
+
 ## Solution
 
 Playing continuous silence keeps the audio subsystem active, preventing freezes. This project provides multiple lightweight implementations to suit different system configurations.
