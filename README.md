@@ -4,7 +4,13 @@ A collection of minimal tools to play silence indefinitely, solving audio subsys
 
 ## Problem
 
-**vokoscreenNG 4.0.1** (https://github.com/vkohaupt/vokoscreenNG) freezes when capturing PulseAudio's "simultaneous output" virtual audio device if no audio is actively playing. The application waits indefinitely for audio packets that never arrive when the audio subsystem is idle.
+**vokoscreenNG 4.0.1** ([GitHub](https://github.com/vkohaupt/vokoscreenNG)) freezes when capturing PulseAudio's "simultaneous output" virtual audio device if no audio is actively playing. The application waits indefinitely for audio packets that never arrive when the audio subsystem is idle.
+
+This is a known issue affecting many users (see [vokoscreenNG issue #189](https://github.com/vkohaupt/vokoscreenNG/issues/189)) with various audio configurations including:
+- PulseAudio simultaneous output devices
+- USB microphones
+- Bluetooth audio devices
+- Monitor sources with PipeWire/PulseAudio
 
 ## Solution
 
