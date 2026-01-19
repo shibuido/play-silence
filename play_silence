@@ -34,7 +34,7 @@ if [[ -t 1 ]]; then
     readonly YELLOW='\033[1;33m'
     readonly BLUE='\033[0;34m'
     readonly BOLD='\033[1m'
-    readonly NC='\033[0m' # Reset to normal
+    readonly NC='\033[0m' # No Color (reset)
 else
     readonly RED=''
     readonly GREEN=''
